@@ -1,100 +1,147 @@
-import typeinfo
-
 type
-
-  DynTypeKind* = enum
+  DynKind* = enum
     ## Closely modeled after system/hti.nim TNimKind
-    dtyNone,
-    dtyBool,
-    dtyChar,
-    dtyEmpty,
-    dtyArrayConstr,
-    dtyNil,
-    dtyExpr,
-    dtyStmt,
-    dtyTypeDesc,
-    dtyGenericInvocation, # ``T[a, b]`` for dtypes to invoke
-    dtyGenericBody,       # ``T[a, b, body]`` last parameter is the body
-    dtyGenericInst,       # ``T[a, b, realInstance]`` instantiated generic dtype
-    dtyGenericParam,      # ``a`` in the example
-    dtyDistinct,          # distinct dtype
-    dtyEnum,
-    dtyOrdinal,
-    dtyArray,
-    dtyObject,
-    dtyTuple,
-    dtySet,
-    dtyRange,
-    dtyPtr,
-    dtyRef,
-    dtyVar,
-    dtySequence,
-    dtyProc,
-    dtyPointer,
-    dtyOpenArray,
-    dtyString,
-    dtyCString,
-    dtyForward,
-    dtyInt,
-    dtyInt8,
-    dtyInt16,
-    dtyInt32,
-    dtyInt64,
-    dtyFloat,
-    dtyFloat32,
-    dtyFloat64,
-    dtyFloat128,
-    dtyUInt,
-    dtyUInt8,
-    dtyUInt16,
-    dtyUInt32,
-    dtyUInt64,
-    dtyOptAsRef,
-    dtyVarargsHidden,
-    dtyUnusedHidden,
-    dtyProxyHidden,
-    dtyBuiltInTypeClassHidden,
-    dtyUserTypeClassHidden,
-    dtyUserTypeClassInstHidden,
-    dtyCompositeTypeClassHidden,
-    dtyInferredHidden,
-    dtyAndHidden, dtyOrHidden, dtyNotHidden,
-    dtyAnythingHidden,
-    dtyStaticHidden,
-    dtyFromExprHidden,
-    dtyOpt,
-    dtyVoidHidden
+    dkNone,
+    dkBool,
+    dkChar,
+    dkEmpty,
+    dkArrayConstr,
+    dkNil,
+    dkExpr,
+    dkStmt,
+    dkTypeDesc,
+    dkGenericInvocation, # ``T[a, b]`` for dtypes to invoke
+    dkGenericBody,       # ``T[a, b, body]`` last parameter is the body
+    dkGenericInst,       # ``T[a, b, realInstance]`` instantiated generic dtype
+    dkGenericParam,      # ``a`` in the example
+    dkDistinct,          # distinct dtype
+    dkEnum,
+    dkOrdinal,
+    dkArray,
+    dkObject,
+    dkTuple,
+    dkSet,
+    dkRange,
+    dkPtr,
+    dkRef,
+    dkVar,
+    dkSequence,
+    dkProc,
+    dkPointer,
+    dkOpenArray,
+    dkString,
+    dkCString,
+    dkForward,
+    dkInt,
+    dkInt8,
+    dkInt16,
+    dkInt32,
+    dkInt64,
+    dkFloat,
+    dkFloat32,
+    dkFloat64,
+    dkFloat128,
+    dkUInt,
+    dkUInt8,
+    dkUInt16,
+    dkUInt32,
+    dkUInt64,
+    dkOptAsRef,
+    dkVarargsHidden,
+    dkUnusedHidden,
+    dkProxyHidden,
+    dkBuiltInTypeClassHidden,
+    dkUserTypeClassHidden,
+    dkUserTypeClassInstHidden,
+    dkCompositeTypeClassHidden,
+    dkInferredHidden,
+    dkAndHidden, dkOrHidden, dkNotHidden,
+    dkAnythingHidden,
+    dkStaticHidden,
+    dkFromExprHidden,
+    dkOpt,
+    dkVoidHidden
 
-  DynTypeNodeKind* = enum 
+  DynNodeKind* = enum 
     ## Modeled closely after system/hti.nim TNimNodeKind
     dnkNone, dnkSlot, dnkList, dnkCase
 
-  DynTypeNode* = object
+  DynNode* = object
     ## Modeled closely after system/hti.nim TNimNode
-    kind: DynTypeNodeKind
-    offset: int
+    kind: DynNodeKind
     typ: ref DynType
     name: string
-    len: int
-    sons: seq[DynTypeNode]
+    sons: seq[DynNode]
 
-  DynType = object
-    ## Modeled closely after system/hti.nim TNimTypeFlag
-    size: int
-    base: ref DynType
-    case kind: DynTypeKind
-    of dtyObject, dtyTuple, dtyEnum:
-      node: ref DynTypeNode
+  DynType* = object
+    ## Modeled closely after system/hti.nim TNimType
+    case kind*: DynKind
+    of dkObject:
+      base*: ref DynType
+      objNode*: DynNode
+    of dkTuple:
+      tupNode*: DynNode
+    of dkEnum:
+      enumNode*: DynNode
     else:
       discard
 
+proc `==`*(x: DynType, y: DynType): bool =
+  if x.kind != y.kind:
+    return false
+  case x.kind:
+    of dkObject:
+      return x.base == y.base and x.objNode == y.objNode
+    of dkTuple:
+      return x.tupNode == y.tupNode
+    of dkEnum:
+      return x.enumNode == y.enumNode
+    else:
+      return true
+
+
+proc `=`*(dst: var DynType; src: DynType) =
+  dst.kind = src.kind
+  case src.kind:
+    of dkObject:
+      dst.base = src.base
+      dst.objNode = src.objNode
+    of dkTuple:
+      dst.tupNode = src.tupNode
+    of dkEnum:
+      dst.enumNode = src.enumNode
+    else:
+      discard
+
+type
   DynValue* {.inheritable.} = object
     dtype*: DynType
 
-  DynCopy*[T] = object of DynValue
+  DynInline*[T] = object of DynValue
     val*: T
 
-  DynHeap*[T] = object of DynValue
+  DynRef*[T] = object of DynValue
     refVal*: ref T
+
+proc `=`*[T](dst: var DynInLine[T]; src: DynInLine[T]) =
+  dst.dtype = src.dtype
+  dst.val = src.val
+
+proc `=destroy`*[T](v: var DynInLine[T]) =
+  discard
+
+proc `=`*[T](dst: var DynRef[T]; src: DynRef[T]) =
+  dst.dtype = src.dtype
+  dst.refVal = src.refVal
+
+proc `=destroy`*[T](v: var DynRef[T]) =
+  discard
+
+func toDynType(t: type): DynType =
+  DynType(kind: dkInt)
+
+func toDynamic*[T](v: T): DynValue =
+  DynInline[T](dtype: toDynType(T),
+               val: v)
     
 

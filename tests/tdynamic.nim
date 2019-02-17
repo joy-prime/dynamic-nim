@@ -1,12 +1,14 @@
-# This is just an example to get you started. You may wish to put all of your
-# tests into a single file, or separate them into multiple `test1`, `test2`
-# etc. files (better names are recommended, just make sure the name starts with
-# the letter 't').
-#
-# To run these tests, simply execute `nimble test`.
+import unittest, dynamic
 
-import unittest, typeinfo, dynamic
+test "DynType assignment":
+  let t1 = DynType(kind: dkInt)
+  check t1.kind == dkInt
 
-test "foo":
-  check true
+proc checkVal[T](v: T, expectedDt: DynType) =
+  let d: DynValue  = v.toDynamic
+  check d.dtype == expectedDt
+
+test "int":
+  checkVal(42,
+           DynType(kind: dkInt))
 

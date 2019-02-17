@@ -9,5 +9,5 @@ srcDir        = "src"
 
 # Dependencies
 
-requires "nim >= 0.19.2"
+requires "nim >= 0.19.4"
 requires "typednimnode >= 0.1.0"
